@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glosario IA con Chatbot OIA - SCORM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Google Analytics Script -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=Tu-GA-ID-aquí"></script> // reemplaza con tu ID de Google Analytics
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'Tu-GA-ID-aquí', { // Reemplaza con tu ID de Google Analytics
+            'anonymize_ip': true,
+            'send_page_view': true
+        });
+    </script>
+    
+    <!-- Carga de Scripts SCORM -->
+    <script src="config.js"></script>
+    <script src="APIWrapper.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #3b82f6;
+            --primary-color-dark: #2563eb;
+            --text-color: #374151;
+            --background-light: #f8fafc;
+            --border-color: #e5e7eb;
+        }
+        html { scroll-behavior: smooth; }
+        body { 
+            font-family: 'Montserrat', sans-serif; 
+            background: linear-gradient(135deg, #ffffff, #f0f7ff); 
+            color: var(--text-color); 
+        }
+        
+        .card {
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226,232,240,0.9);
+            border-radius: 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        .card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+
+        .nav-button {
+            padding: 12px 24px; border-radius: 12px; font-weight: 600;
+            transition: all 0.3s ease; cursor: pointer; border: none;
+            display: flex; align-items: center; gap: 10px;
+            background: var(--background-light); color: #475569;
+        }
+        .nav-button:hover { background: #e2e8f0; }
+        .nav-button.active {
+            background: var(--primary-color); color: white;
+            box-shadow: 0 4px 14px rgba(59,130,246,0.3);
+            transform: scale(1.05);
+        }
+
+        .term-card {
+            background: white; border: 1px solid var(--border-color); border-radius: 16px;
+            transition: all 0.3s ease; overflow: hidden; cursor: pointer;
+        }
+        .term-card.viewed { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-left: 5px solid var(--primary-color); }
+        .term-card:not(.viewed) { border-left: 5px solid transparent; }
+
+        .view-section { display: none; animation: fadeIn 0.5s ease-in-out; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .floating-progress {
+            position: fixed; top: 20px; right: 20px; z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        .progress-ring-bg { stroke: var(--border-color); }
+        .progress-ring-circle {
+            stroke: var(--primary-color);
+            transition: stroke-dashoffset 0.5s cubic-bezier(0.65, 0, 0.35, 1);
+            animation: progress-pulse 2s infinite ease-in-out;
+        }
+        @keyframes progress-pulse {
+            50% { filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.5)); }
+        }
+
+        /* Estilos del Chatbot */
+        .chat-container { height: 65vh; display: flex; flex-direction: column; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+        .message { max-width: 80%; padding: 12px 18px; border-radius: 18px; line-height: 1.5; }
+        .message.user { align-self: flex-end; background: var(--primary-color); color: white; }
+        .message.assistant { align-self: flex-start; background: #eef2ff; color: var(--text-color); border: 1px solid #e0e7ff; }
+        .chat-input-area { padding: 16px; border-top: 1px solid var(--border-color); display: flex; gap: 12px; }
+        .chat-input { flex: 1; padding: 12px 16px; border: 2px solid var(--border-color); border-radius: 12px; resize: none; }
+        .chat-input:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+        .send-button { padding: 12px 16px; background: var(--primary-color); color: white; border: none; border-radius: 12px; cursor: pointer; }
+        .send-button:hover:not(:disabled) { background: var(--primary-color-dark); }
+        .send-button:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .typing-indicator .animate-bounce { animation: bounce 1.4s infinite ease-in-out both; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen p-4 md:p-8">
+        <!-- Indicador de Progreso -->
+        <div class="floating-progress card p-4">
+            <div class="flex items-center gap-4">
+                <div class="relative w-16 h-16">
+                    <svg class="w-16 h-16" viewBox="0 0 120 120" style="transform: rotate(-90deg);">
+                        <circle class="progress-ring-bg" cx="60" cy="60" r="54" stroke-width="10" fill="transparent"/>
+                        <circle id="progressCircle" class="progress-ring-circle" cx="60" cy="60" r="54" stroke-width="10" fill="transparent" stroke-dasharray="339.292" stroke-dashoffset="339.292"/>
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <span id="progressText" class="text-lg font-bold text-blue-600">0%</span>
+                    </div>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-slate-700">Progreso del Glosario</p>
+                    <p id="progressDetails" class="text-xs text-slate-500">0 de 26 términos</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <div class="max-w-6xl mx-auto my-8">
+            <div class="card p-8 text-center">
+                <h1 class="text-4xl md:text-5xl font-bold text-slate-800 mb-2">🧠 Glosario de IA con Chatbot OIA</h1>
+                <p class="text-lg text-slate-600">Herramienta académica con inteligencia artificial conversacional</p>
+            </div>
+        </div>
+
+        <!-- Navegación -->
+        <div class="max-w-6xl mx-auto mb-8">
+            <div class="card p-3">
+                <div class="flex justify-center gap-4">
+                    <button class="nav-button active" onclick="showView('glosario', this)">
+                        <i class="fas fa-book-open"></i> Glosario
+                    </button>
+                    <button class="nav-button" onclick="showView('chatbot', this)">
+                        <i class="fas fa-robot"></i> Chatbot OIA
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contenido Principal -->
+        <div class="max-w-6xl mx-auto">
+            <!-- Vista Glosario -->
+            <div id="glosario-view" class="view-section active">
+                <div id="glossaryContent" class="space-y-8"></div>
+            </div>
+
+            <!-- Vista Chatbot -->
+            <div id="chatbot-view" class="view-section">
+                <div class="card">
+                    <div class="chat-container">
+                        <div class="p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div id="connectionStatus" class="w-3 h-3 rounded-full"></div>
+                                <span id="statusText" class="font-medium text-gray-700"></span>
+                            </div>
+                        </div>
+                        <div id="chatMessages" class="chat-messages"></div>
+                        <div class="chat-input-area">
+                            <textarea id="chatInput" class="chat-input" placeholder="Consulte conceptos de IA..." rows="1"></textarea>
+                            <button id="sendButton" class="send-button" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer con Créditos Originales -->
+        <footer class="max-w-6xl mx-auto mt-12">
+            <div class="card p-6">
+                <div class="space-y-4 text-sm text-slate-600">
+                    <div>
+                        <h4 class="font-semibold text-blue-700 mb-2">Desarrollo digital:</h4>
+                        <p><strong>Claude Sonnet 4 (Anthropic)</strong> · Jul 2025 · <strong>CC-BY-NC 4.0 | GNU GPLv3</strong> - diseño y programación del sistema interactivo, arquitectura de la interfaz de usuario, integración de APIs de inteligencia artificial, desarrollo de funcionalidades SCORM, y optimización para entornos educativos LMS.</p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-blue-700 mb-2">Contenido académico:</h4>
+                        <p>Basado en los contenidos desarrollados en el módulo 1, elaborados por <strong>Francisco Sereño | Damaris Reinoso</strong> (practicante).</p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-blue-700 mb-2">Versión:</h4>
+                        <p><strong>2.5</strong> - Julio 2025</p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-blue-700 mb-2">Funcionalidades:</h4>
+                        <p>Glosario interactivo con 26 términos especializados, chatbot conversacional con IA generativa preconfigurada, seguimiento de progreso estudiantil, sistema de búsqueda avanzada, categorización temática, compatibilidad SCORM para LMS, diseño responsive multiplataforma, persistencia de datos entre sesiones, <strong>sistema de felicitaciones al 100%</strong>, y <strong>Google Analytics integrado</strong> para métricas detalladas de uso académico.</p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-blue-700 mb-2">Tecnologías:</h4>
+                        <p><strong>HTML5, CSS3, JavaScript</strong> - desarrollo web estándar con interfaces dinámicas, integración de APIs RESTful de OpenAI, manipulación del DOM para interactividad, almacenamiento local de datos, comunicación SCORM con LMS, diseño responsive con CSS Grid y Flexbox, y <strong>Google Analytics</strong> para métricas detalladas de uso académico.</p>
+                    </div>
+                    <div class="pt-2 border-t border-slate-200">
+                        <p class="italic text-slate-600">Este artefacto constituye una herramienta de apoyo académico.</p>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- VARIABLES DE ESTADO ---
+        const glossaryData = [
+            { term: "Inteligencia Artificial (IA)", icon: "🤖", def: "Tecnología que permite a las computadoras ejecutar tareas que normalmente requieren inteligencia humana.", category: "Conceptos fundamentales" },
+            { term: "IA generativa", icon: "✨", def: "Rama de la IA capaz de crear contenido original (texto, imágenes, audio, código).", category: "Tipos de IA" },
+            { term: "IA tradicional", icon: "⚙️", def: "Sistemas de IA basados en reglas explícitas y algoritmos clásicos.", category: "Tipos de IA" },
+            { term: "Generatividad", icon: "💡", def: "Capacidad de un sistema de producir resultados nuevos y coherentes.", category: "Capacidades" },
+            { term: "Creatividad sintética", icon: "🧠", def: "Habilidad de mezclar elementos conocidos de formas novedosas para generar contenido.", category: "Capacidades" },
+            { term: "Adaptabilidad contextual", icon: "🤝", def: "Facilidad de ajustar el contenido generado según la audiencia o situación.", category: "Capacidades" },
+            { term: "Escalabilidad", icon: "📊", def: "Aptitud para generar grandes volúmenes de contenido sin perder calidad.", category: "Características técnicas" },
+            { term: "Multimodalidad", icon: "🎨", def: "Capacidad de trabajar con distintos tipos de datos (texto, imágenes, audio) en un mismo proceso.", category: "Características técnicas" },
+            { term: "Software tradicional", icon: "💻", def: "Programas basados en reglas fijas que producen salidas predecibles.", category: "Comparaciones" },
+            { term: "Predicción estadística", icon: "📈", def: "Mecanismo por el cual los modelos eligen la respuesta más probable.", category: "Funcionamiento" },
+            { term: "Alucinación", icon: "👁️", def: "Error en el que la IA inventa información plausible pero incorrecta.", category: "Limitaciones" },
+            { term: "Sesgo", icon: "⚖️", def: "Tendencia heredada de los datos de entrenamiento que puede favorecer ciertas perspectivas.", category: "Limitaciones" },
+            { term: "Sobreajuste (Overfitting)", icon: "📉", def: "Fenómeno donde el modelo memoriza los datos pero falla al generalizar.", category: "Limitaciones" },
+            { term: "Subajuste (Underfitting)", icon: "📊", def: "Situación donde el modelo es demasiado simple para capturar los patrones.", category: "Limitaciones" },
+            { term: "Degradación catastrófica", icon: "⚠️", def: "Pérdida súbita de conocimientos previos al aprender nuevas tareas.", category: "Limitaciones" },
+            { term: "Opacidad algorítmica", icon: "🔒", def: "Dificultad para comprender las decisiones tomadas por modelos complejos.", category: "Limitaciones" },
+            { term: "Prompt (instrucción)", icon: "⌨️", def: "Texto que el usuario proporciona para indicar la tarea a la IA.", category: "Interacción" },
+            { term: "Prompting efectivo", icon: "✍️", def: "Práctica de formular instrucciones claras para mejorar los resultados.", category: "Interacción" },
+            { term: "Transparencia", icon: "👁️‍🗨️", def: "Principio ético que exige informar cuando se usa IA.", category: "Ética" },
+            { term: "Verificación", icon: "✅", def: "Revisión humana de la información generada para asegurar su exactitud.", category: "Ética" },
+            { term: "Responsabilidad", icon: "🛡️", def: "Obligación de mantener supervisión humana sobre las decisiones con IA.", category: "Ética" },
+            { term: "Privacidad", icon: "🔒", def: "Salvaguarda de información confidencial al interactuar con IA.", category: "Ética" },
+            { term: "ChatGPT", icon: "💬", def: "Herramienta de IA conversacional para generación de texto general.", category: "Herramientas" },
+            { term: "Claude", icon: "📄", def: "Modelo especializado en el análisis de documentos extensos.", category: "Herramientas" },
+            { term: "Gemini", icon: "⭐", def: "Sistema de IA integrado en Google Workspace.", category: "Herramientas" },
+            { term: "Perplexity", icon: "❓", def: "Motor de búsqueda basado en IA que ofrece respuestas con fuentes.", category: "Herramientas" }
+        ];
+        let consultedTerms = new Set();
+        let completionMessageShown = false;
+        let chatMessages = [];
+        let isChatLoading = false;
+
+        // --- INICIALIZACIÓN ---
+        function initializeApp() {
+            try {
+                const saved = loadProgress();
+                if (saved) consultedTerms = new Set(JSON.parse(saved));
+            } catch (e) {
+                consultedTerms = new Set();
+            }
+            generateGlossary();
+            updateProgressUI();
+            initializeChat();
+
+            if (scormAvailable) {
+                const status = getSCORMValue('cmi.core.lesson_status');
+                if (status !== 'completed' && status !== 'passed' && status !== 'failed') {
+                    setCompletionStatus('incomplete');
+                }
+            }
+        }
+
+        // --- LÓGICA DE PROGRESO Y SCORM ---
+        function updateProgressUI() {
+            const viewed = consultedTerms.size;
+            const total = glossaryData.length;
+            const percentage = total > 0 ? Math.round((viewed / total) * 100) : 0;
+
+            document.getElementById('progressCircle').style.strokeDashoffset = (2 * Math.PI * 54) * (1 - percentage / 100);
+            document.getElementById('progressText').textContent = `${percentage}%`;
+            document.getElementById('progressDetails').textContent = `${viewed} de ${total} términos`;
+
+            if (typeof saveProgress === 'function') {
+                saveProgress(JSON.stringify([...consultedTerms]));
+            }
+
+            if (typeof setScore !== 'function' || !scormAvailable) return;
+
+            setScore(percentage);
+            if (percentage === 100) {
+                setCompletionStatus('completed');
+                if (!completionMessageShown) {
+                    showCompletionMessage();
+                    completionMessageShown = true;
+                }
+            }
+        }
+
+        window.markTermConsulted = function(termId) {
+            if (!consultedTerms.has(termId)) {
+                consultedTerms.add(termId);
+                updateProgressUI();
+                const termElement = document.querySelector(`[data-term-id="${CSS.escape(termId)}"]`);
+                if (termElement) {
+                    termElement.classList.add('viewed');
+                    const badge = termElement.querySelector('.consultation-badge');
+                    if (badge) {
+                        badge.textContent = '✓ Consultado';
+                        badge.style.background = '#dcfce7';
+                        badge.style.color = '#166534';
+                    }
+                }
+            }
+        }
+
+        // --- LÓGICA DE LA INTERFAZ (UI) ---
+        window.toggleTerm = function(termId) {
+            const definition = document.querySelector(`[data-term-id="${CSS.escape(termId)}"] .definition-content`);
+            const isHidden = definition.style.display === 'none';
+            definition.style.display = isHidden ? 'block' : 'none';
+            if (isHidden) markTermConsulted(termId);
+        }
+
+        function generateGlossary() {
+            const container = document.getElementById('glossaryContent');
+            const categories = [...new Set(glossaryData.map(item => item.category))];
+            
+            categories.forEach(category => {
+                const section = document.createElement('div');
+                section.className = 'card p-6 mb-8';
+                let termsHTML = glossaryData
+                    .filter(item => item.category === category)
+                    .map(item => {
+                        const isViewed = consultedTerms.has(item.term);
+                        return `
+                        <div class="term-card p-4" data-term-id="${item.term}" onclick="toggleTerm('${item.term}')">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-2xl">${item.icon}</span>
+                                    <h3 class="font-semibold text-slate-700">${item.term}</h3>
+                                </div>
+                                <span class="consultation-badge px-2 py-1 rounded-full text-xs" style="background: ${isViewed ? '#dcfce7' : '#fef9c3'}; color: ${isViewed ? '#166534' : '#854d0e'};">
+                                    ${isViewed ? '✓ Consultado' : '🆕 Nuevo'}
+                                </span>
+                            </div>
+                            <div class="definition-content text-slate-600 leading-relaxed" style="display: none;">${item.def}</div>
+                        </div>`;
+                    }).join('');
+                section.innerHTML = `<h2 class="text-xl font-bold text-blue-700 mb-4 pb-2 border-b border-slate-200">${category}</h2><div class="grid md:grid-cols-2 gap-4">${termsHTML}</div>`;
+                container.appendChild(section);
+            });
+        }
+
+        window.showView = function(viewName, button) {
+            document.querySelectorAll('.view-section').forEach(section => section.classList.remove('active'));
+            document.querySelectorAll('.nav-button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`${viewName}-view`).classList.add('active');
+            button.classList.add('active');
+        }
+
+        // --- LÓGICA DEL CHATBOT ---
+        function initializeChat() {
+            const statusDot = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('statusText');
+            const chatInput = document.getElementById('chatInput');
+            const sendButton = document.getElementById('sendButton');
+
+            if (OPENAI_CONFIG.apiKey && OPENAI_CONFIG.apiKey.startsWith('sk-')) {
+                statusDot.style.background = '#22c55e'; // green
+                statusText.textContent = 'Chatbot OIA - Conectado';
+                addChatMessage('assistant', '¡Hola! Soy OIA, tu asistente académico. ¿En qué puedo ayudarte hoy?');
+            } else {
+                statusDot.style.background = '#ef4444'; // red
+                statusText.textContent = 'Chatbot OIA - No disponible';
+                chatInput.disabled = true;
+                sendButton.disabled = true;
+                addChatMessage('assistant', 'El chatbot no está disponible debido a un error de configuración.');
+            }
+        }
+
+        function addChatMessage(role, content) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.innerHTML = content.replace(/\n/g, '<br>');
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        function addTypingIndicator() {
+            const messagesContainer = document.getElementById('chatMessages');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message assistant typing-indicator';
+            typingDiv.innerHTML = `<div class="flex items-center gap-2"><div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div><div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.2s;"></div><div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.4s;"></div></div>`;
+            messagesContainer.appendChild(typingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.querySelector('.typing-indicator');
+            if (indicator) indicator.remove();
+        }
+
+        window.sendMessage = async function() {
+            const chatInput = document.getElementById('chatInput');
+            const sendButton = document.getElementById('sendButton');
+            const message = chatInput.value.trim();
+            if (!message || isChatLoading || !OPENAI_CONFIG.apiKey) return;
+
+            chatInput.value = '';
+            addChatMessage('user', message);
+            isChatLoading = true;
+            sendButton.disabled = true;
+            addTypingIndicator();
+
+            try {
+                const systemPrompt = "Eres un asistente académico especializado en inteligencia artificial, configurado para un glosario. Responde de manera clara, concisa y en español formal, como lo haría un profesor universitario en Chile. Basa tus respuestas en el contexto de la inteligencia artificial y la tecnología.";
+                chatMessages.push({ role: 'user', content: message });
+
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${OPENAI_CONFIG.apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: OPENAI_CONFIG.model || 'gpt-4o-mini',
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            ...chatMessages.slice(-6) // Enviar los últimos 6 mensajes para contexto
+                        ],
+                        temperature: 0.7
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: { message: `Error HTTP ${response.status}` } }));
+                    throw new Error(errorData.error.message);
+                }
+
+                const data = await response.json();
+                const assistantResponse = data.choices[0].message.content;
+                
+                addChatMessage('assistant', assistantResponse);
+                chatMessages.push({ role: 'assistant', content: assistantResponse });
+
+            } catch (error) {
+                console.error("Error en la API de OpenAI:", error);
+                addChatMessage('assistant', `Lo siento, ha ocurrido un error al conectar con la IA: ${error.message}`);
+            } finally {
+                removeTypingIndicator();
+                isChatLoading = false;
+                sendButton.disabled = false;
+            }
+        }
+
+        document.getElementById('chatInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // --- INICIAR LA APLICACIÓN ---
+        initializeApp();
+    });
+    </script>
+</body>
+</html>

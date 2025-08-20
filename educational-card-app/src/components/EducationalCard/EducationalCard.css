@@ -1,0 +1,47 @@
+/* Estilos para EducationalCard.css */
+
+.edu-card {
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  max-width: 340px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  border: 1px solid #e5e7eb;
+}
+
+.edu-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+}
+
+.edu-card-image-container {
+  width: 100%;
+  height: 200px; /* Altura fija para la imagen */
+  overflow: hidden;
+}
+
+.edu-card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Asegura que la imagen cubra el contenedor sin deformarse */
+}
+
+.edu-card-content {
+  padding: 24px;
+}
+
+.edu-card-title {
+  font-size: 1.25rem; /* 20px */
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+}
+
+.edu-card-description {
+  font-size: 1rem; /* 16px */
+  color: #4b5563;
+  line-height: 1.6;
+  margin: 0;
+}
